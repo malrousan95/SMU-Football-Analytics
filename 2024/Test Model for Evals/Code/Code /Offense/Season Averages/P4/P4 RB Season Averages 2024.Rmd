@@ -1,0 +1,1482 @@
+---
+title: "P4 RB Season Averages 2024"
+author: "Mohammad Al-Rousan"
+date: "2026-06-15"
+output: html_document
+---
+P4 RB Averages Week 1-2
+```{r setup, include=FALSE}
+# --- P4 RB Season Averages (Week 1-2) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated:", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/Season Average/P4 RB Average Week 1-2.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/Season Average/P4 RB Average Week 1-2.csv\n")
+```
+
+P4 RB Averages Week 1-3
+```{r}
+# --- P4 RB Season Averages (Week 1-3) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (2 out of 3 weeks)
+  filter(Games_Played >= 2) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 2 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/Season Averages/P4 RB Average Week 1-3.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/Season Averages/P4 RB Average Week 1-3.csv\n")
+```
+
+P4 RB Averages Week 1-4
+```{r}
+# --- P4 RB Season Averages (Week 1-4) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (2 out of 4 weeks)
+  filter(Games_Played >= 2) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 2 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/Season Averages/P4 RB Average Week 1-4.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/Season Averages/P4 RB Average Week 1-4.csv\n")
+
+```
+
+P4 RB Averages Week 1-5
+```{r}
+# --- P4 RB Season Averages (Week 1-5) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (3 out of 5 weeks)
+  filter(Games_Played >= 3) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 3 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/Season Averages/P4 RB Average Week 1-5.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/Season Averages/P4 RB Average Week 1-5.csv\n")
+
+```
+
+P4 RB Averages Week 1-6
+```{r}
+# --- P4 RB Season Averages (Week 1-6) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (3 out of 6 weeks)
+  filter(Games_Played >= 3) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 3 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/Season Averages/P4 RB Average Week 1-6.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/Season Averages/P4 RB Average Week 1-6.csv\n")
+
+```
+
+P4 RB Averages Week 1-7
+```{r}
+# --- P4 RB Season Averages (Week 1-7) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+rb_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/P4 RB Week 7 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6),
+  rb_week7 %>% mutate(Week = 7)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (4 out of 7 weeks)
+  filter(Games_Played >= 4) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 4 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/Season Averages/P4 RB Average Week 1-7.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/Season Averages/P4 RB Average Week 1-7.csv\n")
+
+```
+
+P4 RB Averages Week 1-8
+```{r}
+# --- P4 RB Season Averages (Week 1-8) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+rb_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/P4 RB Week 7 Grade 2024.csv")
+rb_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/P4 RB Week 8 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6),
+  rb_week7 %>% mutate(Week = 7),
+  rb_week8 %>% mutate(Week = 8)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (4 out of 8 weeks)
+  filter(Games_Played >= 4) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 4 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/Season Averages/P4 RB Average Week 1-8.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/Season Averages/P4 RB Average Week 1-8.csv\n")
+
+```
+
+P4 RB Averages Week 1-9
+```{r}
+# --- P4 RB Season Averages (Week 1-9) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+rb_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/P4 RB Week 7 Grade 2024.csv")
+rb_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/P4 RB Week 8 Grade 2024.csv")
+rb_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 9/P4/P4 RB Week 9 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6),
+  rb_week7 %>% mutate(Week = 7),
+  rb_week8 %>% mutate(Week = 8),
+  rb_week9 %>% mutate(Week = 9)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (5 out of 9 weeks)
+  filter(Games_Played >= 5) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 5 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 9/P4/Season Averages/P4 RB Average Week 1-9.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 9/P4/Season Averages/P4 RB Average Week 1-9.csv\n")
+
+```
+
+P4 RB Averages Week 1-10
+```{r}
+# --- P4 RB Season Averages (Week 1-10) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+rb_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/P4 RB Week 7 Grade 2024.csv")
+rb_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/P4 RB Week 8 Grade 2024.csv")
+rb_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 9/P4/P4 RB Week 9 Grade 2024.csv")
+rb_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 10/P4/P4 RB Week 10 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6),
+  rb_week7 %>% mutate(Week = 7),
+  rb_week8 %>% mutate(Week = 8),
+  rb_week9 %>% mutate(Week = 9),
+  rb_week10 %>% mutate(Week = 10)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (5 out of 10 weeks)
+  filter(Games_Played >= 5) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 5 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 10/P4/Season Averages/P4 RB Average Week 1-10.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 10/P4/Season Averages/P4 RB Average Week 1-10.csv\n")
+
+```
+
+P4 RB Averages Week 1-11
+```{r}
+# --- P4 RB Season Averages (Week 1-11) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+rb_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/P4 RB Week 7 Grade 2024.csv")
+rb_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/P4 RB Week 8 Grade 2024.csv")
+rb_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 9/P4/P4 RB Week 9 Grade 2024.csv")
+rb_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 10/P4/P4 RB Week 10 Grade 2024.csv")
+rb_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 11/P4/P4 RB Week 11 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6),
+  rb_week7 %>% mutate(Week = 7),
+  rb_week8 %>% mutate(Week = 8),
+  rb_week9 %>% mutate(Week = 9),
+  rb_week10 %>% mutate(Week = 10),
+  rb_week11 %>% mutate(Week = 11)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (6 out of 11 weeks)
+  filter(Games_Played >= 6) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 6 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 11/P4/Season Averages/P4 RB Average Week 1-11.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 11/P4/Season Averages/P4 RB Average Week 1-11.csv\n")
+
+```
+
+P4 RB Averages Week 1-12
+```{r}
+# --- P4 RB Season Averages (Week 1-12) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+rb_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/P4 RB Week 7 Grade 2024.csv")
+rb_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/P4 RB Week 8 Grade 2024.csv")
+rb_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 9/P4/P4 RB Week 9 Grade 2024.csv")
+rb_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 10/P4/P4 RB Week 10 Grade 2024.csv")
+rb_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 11/P4/P4 RB Week 11 Grade 2024.csv")
+rb_week12 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 12/P4/P4 RB Week 12 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6),
+  rb_week7 %>% mutate(Week = 7),
+  rb_week8 %>% mutate(Week = 8),
+  rb_week9 %>% mutate(Week = 9),
+  rb_week10 %>% mutate(Week = 10),
+  rb_week11 %>% mutate(Week = 11),
+  rb_week12 %>% mutate(Week = 12)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (6 out of 12 weeks)
+  filter(Games_Played >= 6) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 6 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 12/P4/Season Averages/P4 RB Average Week 1-12.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 12/P4/Season Averages/P4 RB Average Week 1-12.csv\n")
+
+```
+
+P4 RB Averages Week 1-13
+```{r}
+# --- P4 RB Season Averages (Week 1-13) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+rb_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/P4 RB Week 7 Grade 2024.csv")
+rb_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/P4 RB Week 8 Grade 2024.csv")
+rb_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 9/P4/P4 RB Week 9 Grade 2024.csv")
+rb_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 10/P4/P4 RB Week 10 Grade 2024.csv")
+rb_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 11/P4/P4 RB Week 11 Grade 2024.csv")
+rb_week12 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 12/P4/P4 RB Week 12 Grade 2024.csv")
+rb_week13 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 13/P4/P4 RB Week 13 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6),
+  rb_week7 %>% mutate(Week = 7),
+  rb_week8 %>% mutate(Week = 8),
+  rb_week9 %>% mutate(Week = 9),
+  rb_week10 %>% mutate(Week = 10),
+  rb_week11 %>% mutate(Week = 11),
+  rb_week12 %>% mutate(Week = 12),
+  rb_week13 %>% mutate(Week = 13)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (7 out of 13 weeks)
+  filter(Games_Played >= 7) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 7 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 13/P4/Season Averages/P4 RB Average Week 1-13.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 13/P4/Season Averages/P4 RB Average Week 1-13.csv\n")
+
+```
+
+P4 RB Averages Week 1-14
+```{r}
+# --- P4 RB Season Averages (Week 1-14) ---
+
+# Load libraries
+library(dplyr)
+library(readr)
+
+# Read the CSV files
+rb_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 1/P4/P4 RB Week 1 Grade 2024.csv")
+rb_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 2/P4/P4 RB Week 2 Grade 2024.csv")
+rb_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 3/P4/P4 RB Week 3 Grade 2024.csv")
+rb_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 4/P4/P4 RB Week 4 Grade 2024.csv")
+rb_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 5/P4/P4 RB Week 5 Grade 2024.csv")
+rb_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 6/P4/P4 RB Week 6 Grade 2024.csv")
+rb_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 7/P4/P4 RB Week 7 Grade 2024.csv")
+rb_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 8/P4/P4 RB Week 8 Grade 2024.csv")
+rb_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 9/P4/P4 RB Week 9 Grade 2024.csv")
+rb_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 10/P4/P4 RB Week 10 Grade 2024.csv")
+rb_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 11/P4/P4 RB Week 11 Grade 2024.csv")
+rb_week12 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 12/P4/P4 RB Week 12 Grade 2024.csv")
+rb_week13 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 13/P4/P4 RB Week 13 Grade 2024.csv")
+rb_week14 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 14/P4/P4 RB Week 14 Grade 2024.csv")
+
+# Combine the data
+rb_combined <- bind_rows(
+  rb_week1 %>% mutate(Week = 1),
+  rb_week2 %>% mutate(Week = 2),
+  rb_week3 %>% mutate(Week = 3),
+  rb_week4 %>% mutate(Week = 4),
+  rb_week5 %>% mutate(Week = 5),
+  rb_week6 %>% mutate(Week = 6),
+  rb_week7 %>% mutate(Week = 7),
+  rb_week8 %>% mutate(Week = 8),
+  rb_week9 %>% mutate(Week = 9),
+  rb_week10 %>% mutate(Week = 10),
+  rb_week11 %>% mutate(Week = 11),
+  rb_week12 %>% mutate(Week = 12),
+  rb_week13 %>% mutate(Week = 13),
+  rb_week14 %>% mutate(Week = 14)
+)
+
+# Calculate averages by player
+rb_season_avg <- rb_combined %>%
+  group_by(Name, Team) %>%
+  summarise(
+    Total_Snaps = sum(Offensive.Snaps, na.rm = TRUE),
+    Avg_Snaps_Per_Game = mean(Offensive.Snaps, na.rm = TRUE),
+    Avg_Composite_Score = mean(Composite_Score, na.rm = TRUE),
+    Games_Played = n_distinct(Week),
+    .groups = "drop"
+  ) %>%
+  filter(!is.na(Avg_Composite_Score)) %>%
+  
+  # Filter for players who played at least half the games (7 out of 14 weeks)
+  filter(Games_Played >= 7) %>%
+  
+  # Determine quartile for adjustment
+  mutate(
+    Score_Quartile = ntile(Avg_Composite_Score, 4),
+    
+    # Apply quartile adjustment
+    Quartile_Adjustment = case_when(
+      Score_Quartile == 4 ~ 1.12,   # top boost still strong
+      Score_Quartile == 3 ~ 1.05,   # moderate
+      Score_Quartile == 2 ~ 0.98,   # small downward tug
+      Score_Quartile == 1 ~ 0.85,   # still punishes bottom
+      TRUE ~ 1
+    ),
+    
+    # Apply quartile adjustment to the average score before curving
+    Adjusted_Avg_Score = Avg_Composite_Score * Quartile_Adjustment,
+    
+    # Curved / smoothed score (now applied to adjusted average)
+    Adjusted_Score = pmin(round(100 * (Adjusted_Avg_Score / 100)^0.7, 2), 100),
+    
+    Display_Grade = case_when(
+      Adjusted_Score >= 93.333 ~ "A+",
+      Adjusted_Score >= 86.667 ~ "A",
+      Adjusted_Score >= 80 ~ "A-",
+      Adjusted_Score >= 73.333 ~ "B+",
+      Adjusted_Score >= 66.667 ~ "B",
+      Adjusted_Score >= 60 ~ "B-",
+      Adjusted_Score >= 53.333 ~ "C+",
+      Adjusted_Score >= 46.667 ~ "C",
+      Adjusted_Score >= 40 ~ "C-",
+      Adjusted_Score >= 33.333 ~ "D+",
+      Adjusted_Score >= 26.667 ~ "D",
+      Adjusted_Score >= 20 ~ "D-",
+      TRUE ~ "F"
+    )
+  ) %>%
+  arrange(desc(Adjusted_Score)) %>%
+  select(Name, Team, Total_Snaps, Avg_Snaps_Per_Game, Games_Played, Adjusted_Score, Display_Grade)
+
+# View results
+print(rb_season_avg)
+View(rb_season_avg)
+
+# Summary statistics
+cat("\n=== SUMMARY STATISTICS ===\n")
+cat("Total RBs evaluated (min 7 games):", nrow(rb_season_avg), "\n")
+cat("Average Adjusted Score:", round(mean(rb_season_avg$Adjusted_Score), 2), "\n")
+cat("Highest Adjusted Score:", max(rb_season_avg$Adjusted_Score), "\n")
+cat("Lowest Adjusted Score:", min(rb_season_avg$Adjusted_Score), "\n")
+
+# Grade distribution
+cat("\n=== GRADE DISTRIBUTION ===\n")
+print(table(rb_season_avg$Display_Grade))
+
+# Top 10 RBs
+cat("\n=== TOP 10 RBs ===\n")
+print(head(rb_season_avg, 10))
+
+# --- Save the file ---
+write.csv(
+  rb_season_avg,
+  "/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 14/P4/Season Averages/P4 RB Average Week 1-14.csv",
+  row.names = FALSE
+)
+
+cat("\n=== FILE SAVED SUCCESSFULLY ===\n")
+cat("Location: /Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Grade Sheet/Offense/Week 14/P4/Season Averages/P4 RB Average Week 1-14.csv\n")
+
+```

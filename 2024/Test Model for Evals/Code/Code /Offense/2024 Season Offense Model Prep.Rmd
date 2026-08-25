@@ -1,0 +1,3695 @@
+---
+title: "2024 Season Offense Model Prep"
+author: "Mohammad Al-Rousan"
+date: "2026-05-01"
+output: html_document
+---
+
+Week 1 2024
+```{r}
+offensive_summary_week1_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 1/Week 1 Offensive Summary 2024.csv")
+offensive_Passing_week1_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 1/Week 1 Passing 2024.csv")
+offensive_Rushing_week1_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 1/Week 1 Rushing 2024.csv")
+offensive_Receiving_week1_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 1/Week 1 Receiving 2024.csv")
+offensive_line_week1_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 1/Week 1 Offensive Line 2024.csv")
+
+colnames(offensive_summary_week1_2024)
+colnames(offensive_Receiving_week1_2024)
+
+# --- Week 1 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week1_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week1_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week1_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week1_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week1_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week1_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week1_2024 <- qb_combined_week1_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week1_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week1_2024$Name), "\n")
+table(qb_combined_week1_2024$Conference_Level)
+
+colnames(qb_combined_week1_2024)
+
+# --- View ---
+View(qb_combined_week1_2024)
+glimpse(qb_combined_week1_2024)
+
+# Week 1 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week1_2024 <- offensive_Receiving_week1_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week1_2024 <- offensive_Rushing_week1_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week1_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week1_2024 <- offensive_Rushing_week1_2024 %>%
+  left_join(offensive_Receiving_week1_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week1_2024 <- rb_combined_week1_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week1_2024 <- rb_combined_week1_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week1_2024)
+colnames(rb_combined_week1_2024)
+glimpse(rb_combined_week1_2024)
+
+# Week 1 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week1_2024 <- offensive_Receiving_week1_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week1_2024 <- offensive_Rushing_week1_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week1_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week1_2024 <- offensive_Receiving_week1_2024 %>%
+  left_join(offensive_Rushing_week1_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week1_2024 <- wr_combined_week1_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week1_2024 <- wr_combined_week1_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week1_2024)
+colnames(wr_combined_week1_2024)
+glimpse(wr_combined_week1_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week1_2024 <- wr_combined_week1_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week1_2024 <- wr_combined_week1_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week1_2024)
+
+# Week 1 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week1_2024 <- offensive_Receiving_week1_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week1_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week1_2024 <- offensive_Receiving_week1_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week1_2024 <- te_combined_week1_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 1 2024 Offensive Line
+# --- Load OL data ---
+ol_week1_2024 <- offensive_line_week1_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week1_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week1_2024 <- ol_week1_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week1_2024$Conference_Level <- ifelse(ol_week1_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week1_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week1_2024 <- ol_week1_2024 %>%
+  mutate(Offensive.Snaps = coalesce(Offensive.Snaps, SNAPS))
+
+# --- Filter for at least 30 snaps using Offensive.Snaps ---
+ol_week1_2024 <- ol_week1_2024 %>%
+  filter(Offensive.Snaps > 10)
+
+# View the result
+glimpse(ol_week1_2024)
+colnames(ol_week1_2024)
+```
+
+Week 2 2024
+```{r}
+offensive_summary_week2_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 2/Week 2 Offensive Summary 2024.csv")
+offensive_Passing_week2_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 2/Week 2 Passing 2024.csv")
+offensive_Rushing_week2_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 2/Week 2 Rushing 2024.csv")
+offensive_Receiving_week2_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 2/Week 2 Receiving 2024.csv")
+offensive_line_week2_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 2/Week 2 Offensive Line 2024.csv")
+
+# --- Week 2 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week2_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week2_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week2_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week2_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week2_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week2_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week2_2024 <- qb_combined_week2_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week2_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week2_2024$Name), "\n")
+table(qb_combined_week2_2024$Conference_Level)
+
+colnames(qb_combined_week2_2024)
+
+# --- View ---
+View(qb_combined_week2_2024)
+glimpse(qb_combined_week2_2024)
+
+# Week 2 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week2_2024 <- offensive_Receiving_week2_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week2_2024 <- offensive_Rushing_week2_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week2_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week2_2024 <- offensive_Rushing_week2_2024 %>%
+  left_join(offensive_Receiving_week2_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week2_2024 <- rb_combined_week2_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week2_2024 <- rb_combined_week2_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week2_2024)
+colnames(rb_combined_week2_2024)
+
+# Week 2 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week2_2024 <- offensive_Receiving_week2_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week2_2024 <- offensive_Rushing_week2_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week2_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week2_2024 <- offensive_Receiving_week2_2024 %>%
+  left_join(offensive_Rushing_week2_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week2_2024 <- wr_combined_week2_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week2_2024 <- wr_combined_week2_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week2_2024)
+colnames(wr_combined_week2_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week2_2024 <- wr_combined_week2_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week2_2024 <- wr_combined_week2_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week2_2024)
+
+# Week 2 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week2_2024 <- offensive_Receiving_week2_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week2_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week2_2024 <- offensive_Receiving_week2_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week2_2024 <- te_combined_week2_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+# Week 2 2024 Offensive Line
+# --- Load OL data ---
+ol_week2_2024 <- offensive_line_week2_2024
+
+colnames(offensive_line_week2_2024)
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week2_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week2_2024 <- ol_week2_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week2_2024$Conference_Level <- ifelse(ol_week2_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week2_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Create Offensive_Snaps column using SNAPS (which exists in the data) ---
+ol_week2_2024 <- ol_week2_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive.Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive_Snaps ---
+ol_week2_2024 <- ol_week2_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 3 2024
+```{r}
+offensive_summary_week3_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 3/Week 3 Offensive Summary 2024.csv")
+offensive_Passing_week3_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 3/Week 3 Passing 2024.csv")
+offensive_Rushing_week3_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 3/Week 3 Rushing 2024.csv")
+offensive_Receiving_week3_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 3/Week 3 Receiving 2024.csv")
+offensive_line_week3_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 3/Week 3 Offensive Line 2024.csv")
+
+# --- Week 3 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week3_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week3_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week3_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week3_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week3_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week3_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week3_2024 <- qb_combined_week3_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week3_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week3_2024$Name), "\n")
+table(qb_combined_week3_2024$Conference_Level)
+
+colnames(qb_combined_week3_2024)
+
+# --- View ---
+View(qb_combined_week3_2024)
+glimpse(qb_combined_week3_2024)
+
+# Week 3 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week3_2024 <- offensive_Receiving_week3_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week3_2024 <- offensive_Rushing_week3_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week3_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week3_2024 <- offensive_Rushing_week3_2024 %>%
+  left_join(offensive_Receiving_week3_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week3_2024 <- rb_combined_week3_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week3_2024 <- rb_combined_week3_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week3_2024)
+colnames(rb_combined_week3_2024)
+
+# Week 3 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week3_2024 <- offensive_Receiving_week3_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week3_2024 <- offensive_Rushing_week3_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week3_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week3_2024 <- offensive_Receiving_week3_2024 %>%
+  left_join(offensive_Rushing_week3_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week3_2024 <- wr_combined_week3_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week3_2024 <- wr_combined_week3_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week3_2024)
+colnames(wr_combined_week3_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week3_2024 <- wr_combined_week3_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week3_2024 <- wr_combined_week3_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week3_2024)
+
+# Week 3 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week3_2024 <- offensive_Receiving_week3_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week3_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week3_2024 <- offensive_Receiving_week3_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week3_2024 <- te_combined_week3_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# --- Week 3 OL Data Processing ---
+
+# Assign the data
+ol_week3_2024 <- offensive_line_week3_2024
+
+# Rename SNAPS to Offensive.Snaps
+colnames(ol_week3_2024)[colnames(ol_week3_2024) == "SNAPS"] <- "Offensive.Snaps"
+
+# Check column names
+colnames(ol_week3_2024)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week3_2024$Conference_Level <- ifelse(ol_week3_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week3_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week3_2024 <- ol_week3_2024 %>%
+  filter(Offensive.Snaps > 10)
+```
+
+Week 4 2024
+```{r}
+offensive_summary_week4_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 4/Week 4 Offensive Summary 2024.csv")
+offensive_Passing_week4_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 4/Week 4 Passing 2024.csv")
+offensive_Rushing_week4_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 4/Week 4 Rushing 2024.csv")
+offensive_Receiving_week4_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 4/Week 4 Receiving 2024.csv.csv")
+offensive_line_week4_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 4/Week 4 Offensive Line 2024.csv")
+
+View(offensive_summary_week4_2024)
+# --- Week 4 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week4_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week4_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week4_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week4_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week4_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week4_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week4_2024 <- qb_combined_week4_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week4_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week4_2024$Name), "\n")
+table(qb_combined_week4_2024$Conference_Level)
+
+colnames(qb_combined_week4_2024)
+
+# --- View ---
+View(qb_combined_week4_2024)
+glimpse(qb_combined_week4_2024)
+
+# Week 4 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week4_2024 <- offensive_Receiving_week4_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week4_2024 <- offensive_Rushing_week4_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week4_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week4_2024 <- offensive_Rushing_week4_2024 %>%
+  left_join(offensive_Receiving_week4_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week4_2024 <- rb_combined_week4_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week4_2024 <- rb_combined_week4_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week4_2024)
+colnames(rb_combined_week4_2024)
+
+# Week 4 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week4_2024 <- offensive_Receiving_week4_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week4_2024 <- offensive_Rushing_week4_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week4_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week4_2024 <- offensive_Receiving_week4_2024 %>%
+  left_join(offensive_Rushing_week4_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week4_2024 <- wr_combined_week4_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week4_2024 <- wr_combined_week4_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week4_2024)
+colnames(wr_combined_week4_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week4_2024 <- wr_combined_week4_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week4_2024 <- wr_combined_week4_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week4_2024)
+
+# Week 4 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week4_2024 <- offensive_Receiving_week4_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week4_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week4_2024 <- offensive_Receiving_week4_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week4_2024 <- te_combined_week4_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 4 2024 Offensive Line
+# --- Load OL data ---
+ol_week4_2024 <- offensive_line_week4_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week4_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week4_2024 <- ol_week4_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week4_2024$Conference_Level <- ifelse(ol_week4_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week4_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week4_2024 <- ol_week4_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week4_2024 <- ol_week4_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 5 2024
+```{r}
+offensive_summary_week5_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 5/Week 5 Offensive Summary 2024.csv")
+offensive_Passing_week5_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 5/Week 5 Passing 2024.csv")
+offensive_Rushing_week5_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 5/Week 5 Rushing 2024.csv")
+offensive_Receiving_week5_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 5/Week 5 Receiving 2024.csv")
+offensive_line_week5_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 5/Week 5 Offensive Line 2024.csv")
+
+# --- Week 5 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week5_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week5_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week5_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week5_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week5_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week5_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week5_2024 <- qb_combined_week5_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week5_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week5_2024$Name), "\n")
+table(qb_combined_week5_2024$Conference_Level)
+
+colnames(qb_combined_week5_2024)
+
+# --- View ---
+View(qb_combined_week5_2024)
+glimpse(qb_combined_week5_2024)
+
+# Week 5 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week5_2024 <- offensive_Receiving_week5_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week5_2024 <- offensive_Rushing_week5_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week5_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week5_2024 <- offensive_Rushing_week5_2024 %>%
+  left_join(offensive_Receiving_week5_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week5_2024 <- rb_combined_week5_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week5_2024 <- rb_combined_week5_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week5_2024)
+colnames(rb_combined_week5_2024)
+
+# Week 5 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week5_2024 <- offensive_Receiving_week5_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week5_2024 <- offensive_Rushing_week5_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week5_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week5_2024 <- offensive_Receiving_week5_2024 %>%
+  left_join(offensive_Rushing_week5_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week5_2024 <- wr_combined_week5_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week5_2024 <- wr_combined_week5_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week5_2024)
+colnames(wr_combined_week5_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week5_2024 <- wr_combined_week5_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week5_2024 <- wr_combined_week5_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week5_2024)
+
+# Week 5 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week5_2024 <- offensive_Receiving_week5_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week5_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week5_2024 <- offensive_Receiving_week5_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week5_2024 <- te_combined_week5_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 5 2024 Offensive Line
+# --- Load OL data ---
+ol_week5_2024 <- offensive_line_week5_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week5_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week5_2024 <- ol_week5_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week5_2024$Conference_Level <- ifelse(ol_week5_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week5_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week5_2024 <- ol_week5_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week5_2024 <- ol_week5_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 6 2024
+```{r}
+offensive_summary_week6_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 6/Week 6 Offensive Summary 2024.csv")
+offensive_Passing_week6_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 6/Week 6 Passing 2024.csv")
+offensive_Rushing_week6_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 6/Week 6 Rushing 2024.csv")
+offensive_Receiving_week6_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 6/Week 6 Receiving 2024.csv")
+offensive_line_week6_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 6/Week 6 Offensive Line 2024.csv")
+
+# --- Week 6 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week6_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week6_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week6_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week6_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week6_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week6_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week6_2024 <- qb_combined_week6_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week6_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week6_2024$Name), "\n")
+table(qb_combined_week6_2024$Conference_Level)
+
+colnames(qb_combined_week6_2024)
+
+# --- View ---
+View(qb_combined_week6_2024)
+glimpse(qb_combined_week6_2024)
+
+# Week 6 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week6_2024 <- offensive_Receiving_week6_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week6_2024 <- offensive_Rushing_week6_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week6_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week6_2024 <- offensive_Rushing_week6_2024 %>%
+  left_join(offensive_Receiving_week6_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week6_2024 <- rb_combined_week6_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week6_2024 <- rb_combined_week6_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week6_2024)
+colnames(rb_combined_week6_2024)
+
+# Week 6 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week6_2024 <- offensive_Receiving_week6_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week6_2024 <- offensive_Rushing_week6_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week6_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week6_2024 <- offensive_Receiving_week6_2024 %>%
+  left_join(offensive_Rushing_week6_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week6_2024 <- wr_combined_week6_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week6_2024 <- wr_combined_week6_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week6_2024)
+colnames(wr_combined_week6_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week6_2024 <- wr_combined_week6_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week6_2024 <- wr_combined_week6_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week6_2024)
+
+# Week 6 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week6_2024 <- offensive_Receiving_week6_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week6_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week6_2024 <- offensive_Receiving_week6_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week6_2024 <- te_combined_week6_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 6 2024 Offensive Line
+# --- Load OL data ---
+ol_week6_2024 <- offensive_line_week6_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week6_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week6_2024 <- ol_week6_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week6_2024$Conference_Level <- ifelse(ol_week6_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week6_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week6_2024 <- ol_week6_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week6_2024 <- ol_week6_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 7 2024
+```{r}
+offensive_summary_week7_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 7/Week 7 Offensive Summary 2024.csv")
+offensive_Passing_week7_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 7/Week 7 Passing 2024.csv")
+offensive_Rushing_week7_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 7/Week 7 Rushing 2024.csv")
+offensive_Receiving_week7_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 7/Week 7 Receiving 2024.csv")
+offensive_line_week7_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 7/Week 7 Offensive Line 2024.csv")
+
+# --- Week 7 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week7_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week7_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week7_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week7_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week7_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week7_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week7_2024 <- qb_combined_week7_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week7_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week7_2024$Name), "\n")
+table(qb_combined_week7_2024$Conference_Level)
+
+colnames(qb_combined_week7_2024)
+
+# --- View ---
+View(qb_combined_week7_2024)
+glimpse(qb_combined_week7_2024)
+
+# Week 7 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week7_2024 <- offensive_Receiving_week7_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week7_2024 <- offensive_Rushing_week7_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week7_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week7_2024 <- offensive_Rushing_week7_2024 %>%
+  left_join(offensive_Receiving_week7_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week7_2024 <- rb_combined_week7_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week7_2024 <- rb_combined_week7_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week7_2024)
+colnames(rb_combined_week7_2024)
+
+# Week 7 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week7_2024 <- offensive_Receiving_week7_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week7_2024 <- offensive_Rushing_week7_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week7_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week7_2024 <- offensive_Receiving_week7_2024 %>%
+  left_join(offensive_Rushing_week7_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week7_2024 <- wr_combined_week7_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week7_2024 <- wr_combined_week7_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week7_2024)
+colnames(wr_combined_week7_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week7_2024 <- wr_combined_week7_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week7_2024 <- wr_combined_week7_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week7_2024)
+
+# Week 7 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week7_2024 <- offensive_Receiving_week7_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week7_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week7_2024 <- offensive_Receiving_week7_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week7_2024 <- te_combined_week7_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 7 2024 Offensive Line
+# --- Load OL data ---
+ol_week7_2024 <- offensive_line_week7_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week7_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week7_2024 <- ol_week7_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week7_2024$Conference_Level <- ifelse(ol_week7_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week7_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week7_2024 <- ol_week7_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week7_2024 <- ol_week7_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 8 2024
+```{r}
+offensive_summary_week8_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 8/Week 8 Offensive Summary 2024.csv")
+offensive_Passing_week8_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 8/Week 8 Passing 2024.csv")
+offensive_Rushing_week8_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 8/Week 8 Rushing 2024.csv")
+offensive_Receiving_week8_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 8/Week 8 Receiving 2024.csv")
+offensive_line_week8_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 8/Week 8 Offensive Line 2024.csv")
+
+# --- Week 8 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week8_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week8_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week8_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week8_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week8_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week8_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week8_2024 <- qb_combined_week8_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week8_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week8_2024$Name), "\n")
+table(qb_combined_week8_2024$Conference_Level)
+
+colnames(qb_combined_week8_2024)
+
+# --- View ---
+View(qb_combined_week8_2024)
+glimpse(qb_combined_week8_2024)
+
+# Week 8 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week8_2024 <- offensive_Receiving_week8_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week8_2024 <- offensive_Rushing_week8_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week8_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week8_2024 <- offensive_Rushing_week8_2024 %>%
+  left_join(offensive_Receiving_week8_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week8_2024 <- rb_combined_week8_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week8_2024 <- rb_combined_week8_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week8_2024)
+colnames(rb_combined_week8_2024)
+
+# Week 8 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week8_2024 <- offensive_Receiving_week8_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week8_2024 <- offensive_Rushing_week8_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week8_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week8_2024 <- offensive_Receiving_week8_2024 %>%
+  left_join(offensive_Rushing_week8_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week8_2024 <- wr_combined_week8_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week8_2024 <- wr_combined_week8_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week8_2024)
+colnames(wr_combined_week8_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week8_2024 <- wr_combined_week8_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week8_2024 <- wr_combined_week8_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week8_2024)
+
+# Week 8 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week8_2024 <- offensive_Receiving_week8_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week8_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week8_2024 <- offensive_Receiving_week8_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week8_2024 <- te_combined_week8_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 8 2024 Offensive Line
+# --- Load OL data ---
+ol_week8_2024 <- offensive_line_week8_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week8_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week8_2024 <- ol_week8_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week8_2024$Conference_Level <- ifelse(ol_week8_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week8_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week8_2024 <- ol_week8_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week8_2024 <- ol_week8_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 9 2024
+```{r}
+offensive_summary_week9_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 9/Week 9 Offensive Summary 2024.csv")
+offensive_Passing_week9_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 9/Week 9 Passing 2024.csv")
+offensive_Rushing_week9_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 9/Week 9 Rushing 2024.csv")
+offensive_Receiving_week9_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 9/Week 9 Receiving 2024.csv")
+offensive_line_week9_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 9/Week 9 Offensive Line 2024.csv")
+
+# --- Week 9 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week9_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week9_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week9_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week9_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week9_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week9_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week9_2024 <- qb_combined_week9_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week9_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week9_2024$Name), "\n")
+table(qb_combined_week9_2024$Conference_Level)
+
+colnames(qb_combined_week9_2024)
+
+# --- View ---
+View(qb_combined_week9_2024)
+glimpse(qb_combined_week9_2024)
+
+# Week 9 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week9_2024 <- offensive_Receiving_week9_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week9_2024 <- offensive_Rushing_week9_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week9_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week9_2024 <- offensive_Rushing_week9_2024 %>%
+  left_join(offensive_Receiving_week9_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week9_2024 <- rb_combined_week9_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week9_2024 <- rb_combined_week9_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week9_2024)
+colnames(rb_combined_week9_2024)
+
+# Week 9 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week9_2024 <- offensive_Receiving_week9_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week9_2024 <- offensive_Rushing_week9_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week9_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week9_2024 <- offensive_Receiving_week9_2024 %>%
+  left_join(offensive_Rushing_week9_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week9_2024 <- wr_combined_week9_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week9_2024 <- wr_combined_week9_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week9_2024)
+colnames(wr_combined_week9_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week9_2024 <- wr_combined_week9_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week9_2024 <- wr_combined_week9_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week9_2024)
+
+# Week 9 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week9_2024 <- offensive_Receiving_week9_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week9_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week9_2024 <- offensive_Receiving_week9_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week9_2024 <- te_combined_week9_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 9 2024 Offensive Line
+# --- Load OL data ---
+ol_week9_2024 <- offensive_line_week9_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week9_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week9_2024 <- ol_week9_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week9_2024$Conference_Level <- ifelse(ol_week9_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week9_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week9_2024 <- ol_week9_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week9_2024 <- ol_week9_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 10 2024
+```{r}
+offensive_summary_week10_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 10/Week 10 Offensive Summary 2024.csv")
+offensive_Passing_week10_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 10/Week 10 Passing 2024.csv")
+offensive_Rushing_week10_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 10/Week 10 Rushing 2024.csv")
+offensive_Receiving_week10_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 10/Week 10 Receiving 2024.csv")
+offensive_line_week10_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 10/Week 10 Offensive Line 2024.csv")
+
+# --- Week 10 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week10_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week10_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week10_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week10_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week10_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week10_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week10_2024 <- qb_combined_week10_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week10_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week10_2024$Name), "\n")
+table(qb_combined_week10_2024$Conference_Level)
+
+colnames(qb_combined_week10_2024)
+
+# --- View ---
+View(qb_combined_week10_2024)
+glimpse(qb_combined_week10_2024)
+
+# Week 10 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week10_2024 <- offensive_Receiving_week10_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week10_2024 <- offensive_Rushing_week10_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week10_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week10_2024 <- offensive_Rushing_week10_2024 %>%
+  left_join(offensive_Receiving_week10_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week10_2024 <- rb_combined_week10_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week10_2024 <- rb_combined_week10_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week10_2024)
+colnames(rb_combined_week10_2024)
+
+# Week 10 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week10_2024 <- offensive_Receiving_week10_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week10_2024 <- offensive_Rushing_week10_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week10_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week10_2024 <- offensive_Receiving_week10_2024 %>%
+  left_join(offensive_Rushing_week10_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week10_2024 <- wr_combined_week10_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week10_2024 <- wr_combined_week10_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week10_2024)
+colnames(wr_combined_week10_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week10_2024 <- wr_combined_week10_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week10_2024 <- wr_combined_week10_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week10_2024)
+
+# Week 10 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week10_2024 <- offensive_Receiving_week10_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week10_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week10_2024 <- offensive_Receiving_week10_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week10_2024 <- te_combined_week10_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 10 2024 Offensive Line
+# --- Load OL data ---
+ol_week10_2024 <- offensive_line_week10_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week10_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week10_2024 <- ol_week10_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week10_2024$Conference_Level <- ifelse(ol_week10_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week10_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week10_2024 <- ol_week10_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week10_2024 <- ol_week10_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 11 2024
+```{r}
+offensive_summary_week11_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 11/Week 11 Offensive Summary 2024.csv")
+offensive_Passing_week11_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 11/Week 11 Passing 2024.csv")
+offensive_Rushing_week11_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 11/Week 11 Rushing 2024.csv")
+offensive_Receiving_week11_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 11/Week 11 Receiving 2024.csv")
+offensive_line_week11_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 11/Week 11 Offensive Line 2024.csv")
+
+# --- Week 11 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week11_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week11_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week11_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week11_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week11_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week11_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week11_2024 <- qb_combined_week11_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week11_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week11_2024$Name), "\n")
+table(qb_combined_week11_2024$Conference_Level)
+
+colnames(qb_combined_week11_2024)
+
+# --- View ---
+View(qb_combined_week11_2024)
+glimpse(qb_combined_week11_2024)
+
+# Week 11 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week11_2024 <- offensive_Receiving_week11_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week11_2024 <- offensive_Rushing_week11_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week11_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week11_2024 <- offensive_Rushing_week11_2024 %>%
+  left_join(offensive_Receiving_week11_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week11_2024 <- rb_combined_week11_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week11_2024 <- rb_combined_week11_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week11_2024)
+colnames(rb_combined_week11_2024)
+
+# Week 11 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week11_2024 <- offensive_Receiving_week11_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week11_2024 <- offensive_Rushing_week11_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week11_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week11_2024 <- offensive_Receiving_week11_2024 %>%
+  left_join(offensive_Rushing_week11_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week11_2024 <- wr_combined_week11_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week11_2024 <- wr_combined_week11_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week11_2024)
+colnames(wr_combined_week11_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week11_2024 <- wr_combined_week11_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week11_2024 <- wr_combined_week11_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week11_2024)
+
+# Week 11 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week11_2024 <- offensive_Receiving_week11_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week11_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week11_2024 <- offensive_Receiving_week11_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week11_2024 <- te_combined_week11_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 11 2024 Offensive Line
+# --- Load OL data ---
+ol_week11_2024 <- offensive_line_week11_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week11_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week11_2024 <- ol_week11_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week11_2024$Conference_Level <- ifelse(ol_week11_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week11_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week11_2024 <- ol_week11_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week11_2024 <- ol_week11_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 12 2024
+```{r}
+offensive_summary_week12_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 12/Week 12 Offensive Summary 2024.csv")
+offensive_Passing_week12_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 12/Week 12 Passing 2024.csv")
+offensive_Rushing_week12_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 12/Week 12 Rushing 2024.csv")
+offensive_Receiving_week12_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 12/Week 12 Recieving 2024.csv")
+offensive_line_week12_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 12/Week 12 Offensive Line 2024.csv")
+
+# --- Week 12 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week12_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week12_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week12_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week12_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week12_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week12_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week12_2024 <- qb_combined_week12_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week12_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week12_2024$Name), "\n")
+table(qb_combined_week12_2024$Conference_Level)
+
+colnames(qb_combined_week12_2024)
+
+# --- View ---
+View(qb_combined_week12_2024)
+glimpse(qb_combined_week12_2024)
+
+# Week 12 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week12_2024 <- offensive_Receiving_week12_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week12_2024 <- offensive_Rushing_week12_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week12_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week12_2024 <- offensive_Rushing_week12_2024 %>%
+  left_join(offensive_Receiving_week12_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week12_2024 <- rb_combined_week12_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week12_2024 <- rb_combined_week12_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week12_2024)
+colnames(rb_combined_week12_2024)
+
+# Week 12 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week12_2024 <- offensive_Receiving_week12_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week12_2024 <- offensive_Rushing_week12_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week12_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week12_2024 <- offensive_Receiving_week12_2024 %>%
+  left_join(offensive_Rushing_week12_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week12_2024 <- wr_combined_week12_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week12_2024 <- wr_combined_week12_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week12_2024)
+colnames(wr_combined_week12_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week12_2024 <- wr_combined_week12_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week12_2024 <- wr_combined_week12_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week12_2024)
+
+# Week 12 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week12_2024 <- offensive_Receiving_week12_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week12_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week12_2024 <- offensive_Receiving_week12_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week12_2024 <- te_combined_week12_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 12 2024 Offensive Line
+# --- Load OL data ---
+ol_week12_2024 <- offensive_line_week12_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week12_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week12_2024 <- ol_week12_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week12_2024$Conference_Level <- ifelse(ol_week12_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week12_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week12_2024 <- ol_week12_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week12_2024 <- ol_week12_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 13 2024
+```{r}
+offensive_summary_week13_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 13/Week 13 Offensive Summary 2024.csv")
+offensive_Passing_week13_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 13/Week 13 Passing 2024.csv")
+offensive_Rushing_week13_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 13/Week 13 Rushing 2024.csv")
+offensive_Receiving_week13_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 13/Week 13 Receiving 2024.csv")
+offensive_line_week13_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 13/Week 13 Offensive Line 2024.csv")
+
+# --- Week 13 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week13_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week13_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week13_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week13_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week13_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week13_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week13_2024 <- qb_combined_week13_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week13_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week13_2024$Name), "\n")
+table(qb_combined_week13_2024$Conference_Level)
+
+colnames(qb_combined_week13_2024)
+
+# --- View ---
+View(qb_combined_week13_2024)
+glimpse(qb_combined_week13_2024)
+
+# Week 13 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week13_2024 <- offensive_Receiving_week13_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week13_2024 <- offensive_Rushing_week13_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week13_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week13_2024 <- offensive_Rushing_week13_2024 %>%
+  left_join(offensive_Receiving_week13_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week13_2024 <- rb_combined_week13_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week13_2024 <- rb_combined_week13_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week13_2024)
+colnames(rb_combined_week13_2024)
+
+# Week 13 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week13_2024 <- offensive_Receiving_week13_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week13_2024 <- offensive_Rushing_week13_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week13_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week13_2024 <- offensive_Receiving_week13_2024 %>%
+  left_join(offensive_Rushing_week13_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week13_2024 <- wr_combined_week13_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week13_2024 <- wr_combined_week13_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week13_2024)
+colnames(wr_combined_week13_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week13_2024 <- wr_combined_week13_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week13_2024 <- wr_combined_week13_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week13_2024)
+
+# Week 13 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week13_2024 <- offensive_Receiving_week13_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week13_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week13_2024 <- offensive_Receiving_week13_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week13_2024 <- te_combined_week13_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 13 2024 Offensive Line
+# --- Load OL data ---
+ol_week13_2024 <- offensive_line_week13_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week13_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week13_2024 <- ol_week13_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week13_2024$Conference_Level <- ifelse(ol_week13_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week13_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week13_2024 <- ol_week13_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week13_2024 <- ol_week13_2024 %>%
+  filter(Offensive_Snaps > 10)
+```
+
+Week 14 2024
+```{r}
+offensive_summary_week14_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 14/Week 14 Offensive Summary 2024.csv")
+offensive_Passing_week14_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 14/Week 14 Passing 2024.csv")
+offensive_Rushing_week14_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 14/Week 14 Rushing 2024.csv")
+offensive_Receiving_week14_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 14/Week 14 Receiving 2024.csv")
+offensive_line_week14_2024 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Offense /Week 14/Week 14 Offensive Line 2024.csv")
+
+# --- Week 14 2024 QB Data Preparation ---
+
+cat("Passing dataset columns:\n")
+print(colnames(offensive_Passing_week14_2024))
+
+cat("\nRushing dataset columns:\n")
+print(colnames(offensive_Rushing_week14_2024))
+
+# --- Passing data ---
+passing_clean <- offensive_Passing_week14_2024 %>%
+  filter(Position == "QB") %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12") ~ "P4",
+      Conference %in% c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)") ~ "G5",
+      TRUE ~ "Other"
+    )
+  ) %>%
+  filter(Conference_Level %in% c("P4", "G5"))
+
+# --- Rushing data ---
+rushing_clean <- offensive_Rushing_week14_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, 
+         Rush.Grade, Rush.Yards, Yards.per.Attempt, Rush.Touchdowns, 
+         First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs,
+         Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt,
+         Scrambles, First.down.or.Touchdown.percentage,
+         Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage)
+
+# --- Offensive Summary (Snaps) ---
+summary_clean <- offensive_summary_week14_2024 %>%
+  filter(Position == "QB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Join (ONLY Name + Position) ---
+qb_combined_week14_2024 <- passing_clean %>%
+  left_join(rushing_clean, by = c("Name", "Position")) %>%
+  left_join(summary_clean, by = c("Name", "Position")) %>%
+  select(
+    Name, Team, Season, Position, Conference, Conference_Level, Offensive.Snaps,
+    
+    # Passing
+    Pass.Grade, Dropbacks, Attempts, Completion, Completion.Percentage,
+    Adjusted.Completion.Percentage, Passing.Yards, 
+    Yards.per.Attempt.x, 
+    Yards.After.Catch.per.Completion.Percentage, Passing.Touchdowns,
+    Interceptions, Sacks, Average.Time.to.Throw, Batted.Passes,
+    Pass.Break.Up, Turnover.Worthy.Plays, Turnover.Worthy.Plays.Percentage,
+    Big.Time.Throws, Big.Time.Throw.Percentage, Dropped.Passes,
+    NFL.Passer.Rating, Average.Depth.of.Targets, Short.of.Sticks.Percentage,
+    Percentage.of.Pass.Attempts.passed.First.Down.Markers, Air.Yards.Percentage,
+    First.Downs, Play.Action.Percentage, Accuracy.Attempts,
+    Accurate.Plus.Percentage, Catchable.Innacurate.Percentage,
+    Uncatchable.Innacurage.Percentage, Other.Percentage, Accurate.Throw.Percentage,
+    
+    # Rushing
+    Rush.Grade, Rush.Yards, Yards.per.Attempt.y, Rush.Touchdowns, 
+    First.Down.Runs, Fumbles, Fumbles.Lost, Missed.Tackles.on.Runs, 
+    Yards.before.Contact.per.Attempt, Yards.after.Contract.per.Attempt, 
+    Scrambles.y, First.down.or.Touchdown.percentage, 
+    Missed.Tackles.forced.per.Attempt, Explosive.Runs, Change.of.direction.percentage
+  ) %>%
+  rename(
+    Yards.per.Attempt.Pass = Yards.per.Attempt.x,
+    Yards.per.Attempt.Rush = Yards.per.Attempt.y,
+    Scrambles = Scrambles.y
+  )
+
+# --- Final filter ---
+qb_combined_week14_2024 <- qb_combined_week14_2024 %>%
+  filter(Position == "QB", Dropbacks > 10)
+
+# --- Check ---
+cat("Final combined QB dataset dimensions:", dim(qb_combined_week14_2024), "\n")
+cat("Unique QBs:", n_distinct(qb_combined_week14_2024$Name), "\n")
+table(qb_combined_week14_2024$Conference_Level)
+
+colnames(qb_combined_week14_2024)
+
+# --- View ---
+View(qb_combined_week14_2024)
+glimpse(qb_combined_week14_2024)
+
+# Week 14 2024 Rushing - RB
+# --- Fix data types before joining ---
+offensive_Receiving_week14_2024 <- offensive_Receiving_week14_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+offensive_Rushing_week14_2024 <- offensive_Rushing_week14_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for RBs from summary ---
+rb_summary_snaps <- offensive_summary_week14_2024 %>%
+  filter(Position == "HB") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Rushing, Receiving, and Summary for RBs ---
+rb_combined_week14_2024 <- offensive_Rushing_week14_2024 %>%
+  left_join(offensive_Receiving_week14_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(rb_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for HBs with at least 5 attempts ---
+rb_combined_week14_2024 <- rb_combined_week14_2024 %>%
+  filter(Position == "HB", Attempts > 5)
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+rb_combined_week14_2024 <- rb_combined_week14_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+View(rb_combined_week14_2024)
+colnames(rb_combined_week14_2024)
+
+# Week 14 2024 Receiving - WR (Simplified - like RB approach)
+
+# --- Fix data types before joining ---
+offensive_Receiving_week14_2024 <- offensive_Receiving_week14_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season),
+    Team = Team.Name  # Create Team column from Team.Name
+  )
+
+offensive_Rushing_week14_2024 <- offensive_Rushing_week14_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for WRs from summary ---
+wr_summary_snaps <- offensive_summary_week14_2024 %>%
+  filter(Position == "WR") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving, Rushing, and Summary for WRs ---
+wr_combined_week14_2024 <- offensive_Receiving_week14_2024 %>%
+  left_join(offensive_Rushing_week14_2024, by = c("Name", "Season", "Position")) %>%
+  left_join(wr_summary_snaps, by = c("Name", "Position"))
+
+# --- Filter for WRs only ---
+wr_combined_week14_2024 <- wr_combined_week14_2024 %>%
+  filter(Position == "WR")
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+wr_combined_week14_2024 <- wr_combined_week14_2024 %>%
+  mutate(
+    Conference = coalesce(Conference.x, Conference.y),
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    ),
+    Team = coalesce(Team.x, Team.y)
+  )
+
+View(wr_combined_week14_2024)
+colnames(wr_combined_week14_2024)
+
+# --- Filter to WRs with at least 10 receiving snaps ---
+wr_combined_week14_2024 <- wr_combined_week14_2024 %>%
+  filter(Receiving.Snaps > 10)
+
+# --- Feature Engineering ---
+wr_combined_week14_2024 <- wr_combined_week14_2024 %>%
+  mutate(
+    Catch_Rate = Receptions / pmax(Targets, 1),
+    Yards_Per_Tgt = Receiving.Yards / pmax(Targets, 1),
+    Tgt_Per_Snap = Targets / pmax(Receiving.Snaps, 1)
+  )
+
+View(wr_combined_week14_2024)
+
+colnames(wr_combined_week14_2024)
+
+# Week 14 2024 Receiving - TE
+# --- Fix data types before joining ---
+offensive_Receiving_week14_2024 <- offensive_Receiving_week14_2024 %>%
+  mutate(
+    Conference = as.character(Conference),
+    Season = as.integer(Season)
+  )
+
+# --- Get Offensive Snaps for TEs from summary ---
+te_summary_snaps <- offensive_summary_week14_2024 %>%
+  filter(Position == "TE") %>%
+  select(Name, Position, Offensive.Snaps)
+
+# --- Combine Receiving and Summary for TEs ---
+te_combined_week14_2024 <- offensive_Receiving_week14_2024 %>%
+  filter(Position == "TE") %>%
+  left_join(te_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+te_combined_week14_2024 <- te_combined_week14_2024 %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ "Other"
+    )
+  )
+
+# Week 14 2024 Offensive Line
+# --- Load OL data ---
+ol_week14_2024 <- offensive_line_week14_2024
+
+# --- Get Offensive Snaps for OL from summary ---
+ol_summary_snaps <- offensive_summary_week14_2024 %>%
+  filter(Position %in% c("OT", "OG", "OC", "OL")) %>%
+  select(Name, Position, Offensive_Snaps)
+
+# --- Join OL data with summary snaps ---
+ol_week14_2024 <- ol_week14_2024 %>%
+  left_join(ol_summary_snaps, by = c("Name", "Position"))
+
+# --- Define conferences ---
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "The American", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+# --- Add conference level ---
+ol_week14_2024$Conference_Level <- ifelse(ol_week14_2024$Conference %in% p4_conference, "P4",
+                                  ifelse(ol_week14_2024$Conference %in% g5_conference, "G5", "Other"))
+
+# --- Add Offensive.Snaps column (use Offensive.Snaps from join, otherwise use SNAPS) ---
+ol_week14_2024 <- ol_week14_2024 %>%
+  mutate(Offensive_Snaps = coalesce(Offensive_Snaps, SNAPS))
+
+# --- Filter for at least 10 snaps using Offensive.Snaps ---
+ol_week14_2024 <- ol_week14_2024 %>%
+  filter(Offensive_Snaps > 10)
+```

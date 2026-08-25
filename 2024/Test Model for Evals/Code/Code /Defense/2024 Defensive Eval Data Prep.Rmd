@@ -1,0 +1,3451 @@
+---
+title: "2024 Defensive Eval Data Prep"
+author: "Mohammad Al-Rousan"
+date: "2026-07-26"
+output: html_document
+---
+
+Week 1 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 1 Datasets
+## ===========================
+defensive_summary_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 1/Week 1 Defensive Summary 2024.csv")
+defensive_PassRush_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 1/Week 1 Pass Rush 2024 .csv")
+defensive_RushDefense_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 1/Week 1 Rush Defense 2024.csv")
+defensive_Coverage_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 1/Week 1 Coverage 2024 (FBS).csv")
+defensive_tackle_week1 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 1/Week 1 Tackling 2024.csv")
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+defensive_summary_week1 <- defensive_summary_week1 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week1 <- defensive_PassRush_week1 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week1 <- defensive_RushDefense_week1 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week1 <- defensive_Coverage_week1 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week1 <- defensive_tackle_week1 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata
+## ===========================
+drop_cols <- c(
+  "Conference",
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week1 <- defensive_PassRush_week1 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week1 <- defensive_RushDefense_week1 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week1 <- defensive_Coverage_week1 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week1 <- defensive_tackle_week1 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week1 <- defensive_summary_week1 %>%
+  left_join(defensive_PassRush_week1, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week1, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week1, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week1, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week1 <- defensive_combined_week1 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 1 Defensive Line
+## ===========================
+dl_week1_2024 <- defensive_combined_week1 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week1_2024)
+colnames(dl_week1_2024)
+
+## ===========================
+## Week 1 Edge Defenders
+## ===========================
+de_week1_2024 <- defensive_combined_week1 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week1_2024)
+colnames(de_week1_2024)
+
+## ===========================
+## Week 1 Linebackers
+## ===========================
+lb_week1_2024 <- defensive_combined_week1 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week1_2024)
+colnames(lb_week1_2024)
+
+## ===========================
+## Week 1 Cornerbacks
+## ===========================
+cb_week1_2024 <- defensive_combined_week1 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week1_2024)
+colnames(cb_week1_2024)
+
+## ===========================
+## Week 1 Safeties
+## ===========================
+s_week1_2024 <- defensive_combined_week1 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week1_2024)
+colnames(s_week1_2024)
+```
+
+Week 2 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 2 Datasets
+## ===========================
+defensive_summary_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 2/Week 2 Defensive Summary 2024.csv")
+defensive_PassRush_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 2/Week 2 Pass Rush 2024 .csv")
+defensive_RushDefense_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 2/Week 2 Rush Defense 2024.csv")
+defensive_Coverage_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 2/Week 2 Coverage 2024 (FBS).csv")
+defensive_tackle_week2 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 2/Week 2 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week2), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week2), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week2), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week2), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week2), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week2)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week2 <- defensive_summary_week2 %>%
+    left_join(
+      defensive_PassRush_week2 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week2)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week2 <- defensive_summary_week2 %>%
+    left_join(
+      defensive_RushDefense_week2 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week2)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week2 <- defensive_summary_week2 %>%
+    left_join(
+      defensive_Coverage_week2 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week2)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week2 <- defensive_summary_week2 %>%
+    left_join(
+      defensive_tackle_week2 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week2 <- defensive_summary_week2 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week2 <- defensive_PassRush_week2 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week2 <- defensive_RushDefense_week2 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week2 <- defensive_Coverage_week2 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week2 <- defensive_tackle_week2 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week2 <- defensive_PassRush_week2 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week2 <- defensive_RushDefense_week2 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week2 <- defensive_Coverage_week2 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week2 <- defensive_tackle_week2 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week2 <- defensive_summary_week2 %>%
+  left_join(defensive_PassRush_week2, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week2, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week2, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week2, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week2 <- defensive_combined_week2 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 2 Defensive Line
+## ===========================
+dl_week2_2024 <- defensive_combined_week2 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week2_2024)
+colnames(dl_week2_2024)
+
+## ===========================
+## Week 2 Edge Defenders
+## ===========================
+de_week2_2024 <- defensive_combined_week2 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week2_2024)
+colnames(de_week2_2024)
+
+## ===========================
+## Week 2 Linebackers
+## ===========================
+lb_week2_2024 <- defensive_combined_week2 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week2_2024)
+colnames(lb_week2_2024)
+
+## ===========================
+## Week 2 Cornerbacks
+## ===========================
+cb_week2_2024 <- defensive_combined_week2 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week2_2024)
+colnames(cb_week2_2024)
+
+## ===========================
+## Week 2 Safeties
+## ===========================
+s_week2_2024 <- defensive_combined_week2 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week2_2024)
+colnames(s_week2_2024)
+```
+
+Week 3 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 3 Datasets
+## ===========================
+defensive_summary_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 3/Week 3 Defensive Summary 2024.csv")
+defensive_PassRush_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 3/Week 3 Pass Rush 2024 .csv")
+defensive_RushDefense_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 3/Week 3 Rush Defense 2024.csv")
+defensive_Coverage_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 3/Week 3 Coverage 2024 (FBS).csv")
+defensive_tackle_week3 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 3/Week 3 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week3), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week3), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week3), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week3), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week3), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+# Start with summary
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week3)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week3 <- defensive_summary_week3 %>%
+    left_join(
+      defensive_PassRush_week3 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week3)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week3 <- defensive_summary_week3 %>%
+    left_join(
+      defensive_RushDefense_week3 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week3)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week3 <- defensive_summary_week3 %>%
+    left_join(
+      defensive_Coverage_week3 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week3)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week3 <- defensive_summary_week3 %>%
+    left_join(
+      defensive_tackle_week3 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week3 <- defensive_summary_week3 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week3 <- defensive_PassRush_week3 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week3 <- defensive_RushDefense_week3 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week3 <- defensive_Coverage_week3 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week3 <- defensive_tackle_week3 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week3 <- defensive_PassRush_week3 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week3 <- defensive_RushDefense_week3 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week3 <- defensive_Coverage_week3 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week3 <- defensive_tackle_week3 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week3 <- defensive_summary_week3 %>%
+  left_join(defensive_PassRush_week3, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week3, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week3, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week3, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week3 <- defensive_combined_week3 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 3 Defensive Line
+## ===========================
+dl_week3_2024 <- defensive_combined_week3 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week3_2024)
+colnames(dl_week3_2024)
+
+## ===========================
+## Week 3 Edge Defenders
+## ===========================
+de_week3_2024 <- defensive_combined_week3 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week3_2024)
+colnames(de_week3_2024)
+
+## ===========================
+## Week 3 Linebackers
+## ===========================
+lb_week3_2024 <- defensive_combined_week3 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week3_2024)
+colnames(lb_week3_2024)
+
+## ===========================
+## Week 3 Cornerbacks
+## ===========================
+cb_week3_2024 <- defensive_combined_week3 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week3_2024)
+colnames(cb_week3_2024)
+
+## ===========================
+## Week 3 Safeties
+## ===========================
+s_week3_2024 <- defensive_combined_week3 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week3_2024)
+colnames(s_week3_2024)
+```
+
+Week 4 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 4 Datasets
+## ===========================
+defensive_summary_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 4/Week 4 Defensive Summary 2024.csv")
+defensive_PassRush_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 4/Week 4 Pass Rush 2024 .csv")
+defensive_RushDefense_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 4/Week 4 Rush Defense 2024.csv")
+defensive_Coverage_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 4/Week 4 Coverage 2024 (FBS).csv")
+defensive_tackle_week4 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 4/Week 4 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week4), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week4), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week4), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week4), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week4), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week4)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week4 <- defensive_summary_week4 %>%
+    left_join(
+      defensive_PassRush_week4 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week4)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week4 <- defensive_summary_week4 %>%
+    left_join(
+      defensive_RushDefense_week4 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week4)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week4 <- defensive_summary_week4 %>%
+    left_join(
+      defensive_Coverage_week4 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week4)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week4 <- defensive_summary_week4 %>%
+    left_join(
+      defensive_tackle_week4 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week4 <- defensive_summary_week4 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week4 <- defensive_PassRush_week4 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week4 <- defensive_RushDefense_week4 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week4 <- defensive_Coverage_week4 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week4 <- defensive_tackle_week4 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week4 <- defensive_PassRush_week4 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week4 <- defensive_RushDefense_week4 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week4 <- defensive_Coverage_week4 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week4 <- defensive_tackle_week4 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week4 <- defensive_summary_week4 %>%
+  left_join(defensive_PassRush_week4, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week4, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week4, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week4, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week4 <- defensive_combined_week4 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 4 Defensive Line
+## ===========================
+dl_week4_2024 <- defensive_combined_week4 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week4_2024)
+colnames(dl_week4_2024)
+
+## ===========================
+## Week 4 Edge Defenders
+## ===========================
+de_week4_2024 <- defensive_combined_week4 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week4_2024)
+colnames(de_week4_2024)
+
+## ===========================
+## Week 4 Linebackers
+## ===========================
+lb_week4_2024 <- defensive_combined_week4 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week4_2024)
+colnames(lb_week4_2024)
+
+## ===========================
+## Week 4 Cornerbacks
+## ===========================
+cb_week4_2024 <- defensive_combined_week4 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week4_2024)
+colnames(cb_week4_2024)
+
+## ===========================
+## Week 4 Safeties
+## ===========================
+s_week4_2024 <- defensive_combined_week4 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week4_2024)
+colnames(s_week4_2024)
+```
+
+Week 5 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 5 Datasets
+## ===========================
+defensive_summary_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 5/Week 5 Defensive Summary 2024.csv")
+defensive_PassRush_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 5/Week 5 Pass Rush 2024 .csv")
+defensive_RushDefense_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 5/Week 5 Rush Defense 2024.csv")
+defensive_Coverage_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 5/Week 5 Coverage 2024 (FBS).csv")
+defensive_tackle_week5 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 5/Week 5 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week5), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week5), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week5), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week5), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week5), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week5)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week5 <- defensive_summary_week5 %>%
+    left_join(
+      defensive_PassRush_week5 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week5)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week5 <- defensive_summary_week5 %>%
+    left_join(
+      defensive_RushDefense_week5 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week5)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week5 <- defensive_summary_week5 %>%
+    left_join(
+      defensive_Coverage_week5 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week5)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week5 <- defensive_summary_week5 %>%
+    left_join(
+      defensive_tackle_week5 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week5 <- defensive_summary_week5 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week5 <- defensive_PassRush_week5 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week5 <- defensive_RushDefense_week5 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week5 <- defensive_Coverage_week5 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week5 <- defensive_tackle_week5 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week5 <- defensive_PassRush_week5 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week5 <- defensive_RushDefense_week5 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week5 <- defensive_Coverage_week5 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week5 <- defensive_tackle_week5 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week5 <- defensive_summary_week5 %>%
+  left_join(defensive_PassRush_week5, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week5, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week5, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week5, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week5 <- defensive_combined_week5 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 5 Defensive Line
+## ===========================
+dl_week5_2024 <- defensive_combined_week5 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week5_2024)
+colnames(dl_week5_2024)
+
+## ===========================
+## Week 5 Edge Defenders
+## ===========================
+de_week5_2024 <- defensive_combined_week5 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week5_2024)
+colnames(de_week5_2024)
+
+## ===========================
+## Week 5 Linebackers
+## ===========================
+lb_week5_2024 <- defensive_combined_week5 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week5_2024)
+colnames(lb_week5_2024)
+
+## ===========================
+## Week 5 Cornerbacks
+## ===========================
+cb_week5_2024 <- defensive_combined_week5 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week5_2024)
+colnames(cb_week5_2024)
+
+## ===========================
+## Week 5 Safeties
+## ===========================
+s_week5_2024 <- defensive_combined_week5 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week5_2024)
+colnames(s_week5_2024)
+```
+
+Week 6 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 6 Datasets
+## ===========================
+defensive_summary_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 6/Week 6 Defensive Summary 2024.csv")
+defensive_PassRush_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 6/Week 6 Pass Rush 2024 .csv")
+defensive_RushDefense_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 6/Week 6 Rush Defense 2024.csv")
+defensive_Coverage_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 6/Week 6 Coverage 2024 (FBS).csv")
+defensive_tackle_week6 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 6/Week 6 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week6), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week6), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week6), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week6), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week6), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week6)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week6 <- defensive_summary_week6 %>%
+    left_join(
+      defensive_PassRush_week6 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week6)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week6 <- defensive_summary_week6 %>%
+    left_join(
+      defensive_RushDefense_week6 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week6)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week6 <- defensive_summary_week6 %>%
+    left_join(
+      defensive_Coverage_week6 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week6)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week6 <- defensive_summary_week6 %>%
+    left_join(
+      defensive_tackle_week6 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week6 <- defensive_summary_week6 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week6 <- defensive_PassRush_week6 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week6 <- defensive_RushDefense_week6 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week6 <- defensive_Coverage_week6 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week6 <- defensive_tackle_week6 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week6 <- defensive_PassRush_week6 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week6 <- defensive_RushDefense_week6 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week6 <- defensive_Coverage_week6 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week6 <- defensive_tackle_week6 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week6 <- defensive_summary_week6 %>%
+  left_join(defensive_PassRush_week6, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week6, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week6, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week6, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week6 <- defensive_combined_week6 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 6 Defensive Line
+## ===========================
+dl_week6_2024 <- defensive_combined_week6 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week6_2024)
+colnames(dl_week6_2024)
+
+## ===========================
+## Week 6 Edge Defenders
+## ===========================
+de_week6_2024 <- defensive_combined_week6 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week6_2024)
+colnames(de_week6_2024)
+
+## ===========================
+## Week 6 Linebackers
+## ===========================
+lb_week6_2024 <- defensive_combined_week6 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week6_2024)
+colnames(lb_week6_2024)
+
+## ===========================
+## Week 6 Cornerbacks
+## ===========================
+cb_week6_2024 <- defensive_combined_week6 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week6_2024)
+colnames(cb_week6_2024)
+
+## ===========================
+## Week 6 Safeties
+## ===========================
+s_week6_2024 <- defensive_combined_week6 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week6_2024)
+colnames(s_week6_2024)
+```
+
+Week 7 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 7 Datasets
+## ===========================
+defensive_summary_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 7/Week 7 Defensive Summary 2024.csv")
+defensive_PassRush_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 7/Week 7 Pass Rush 2024 .csv")
+defensive_RushDefense_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 7/Week 7 Rush Defense 2024.csv")
+defensive_Coverage_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 7/Week 7 Coverage 2024 (FBS).csv")
+defensive_tackle_week7 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 7/Week 7 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week7), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week7), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week7), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week7), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week7), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week7)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week7 <- defensive_summary_week7 %>%
+    left_join(
+      defensive_PassRush_week7 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week7)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week7 <- defensive_summary_week7 %>%
+    left_join(
+      defensive_RushDefense_week7 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week7)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week7 <- defensive_summary_week7 %>%
+    left_join(
+      defensive_Coverage_week7 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week7)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week7 <- defensive_summary_week7 %>%
+    left_join(
+      defensive_tackle_week7 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week7 <- defensive_summary_week7 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week7 <- defensive_PassRush_week7 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week7 <- defensive_RushDefense_week7 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week7 <- defensive_Coverage_week7 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week7 <- defensive_tackle_week7 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week7 <- defensive_PassRush_week7 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week7 <- defensive_RushDefense_week7 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week7 <- defensive_Coverage_week7 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week7 <- defensive_tackle_week7 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week7 <- defensive_summary_week7 %>%
+  left_join(defensive_PassRush_week7, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week7, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week7, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week7, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week7 <- defensive_combined_week7 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 7 Defensive Line
+## ===========================
+dl_week7_2024 <- defensive_combined_week7 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week7_2024)
+colnames(dl_week7_2024)
+
+## ===========================
+## Week 7 Edge Defenders
+## ===========================
+de_week7_2024 <- defensive_combined_week7 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week7_2024)
+colnames(de_week7_2024)
+
+## ===========================
+## Week 7 Linebackers
+## ===========================
+lb_week7_2024 <- defensive_combined_week7 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week7_2024)
+colnames(lb_week7_2024)
+
+## ===========================
+## Week 7 Cornerbacks
+## ===========================
+cb_week7_2024 <- defensive_combined_week7 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week7_2024)
+colnames(cb_week7_2024)
+
+## ===========================
+## Week 7 Safeties
+## ===========================
+s_week7_2024 <- defensive_combined_week7 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week7_2024)
+colnames(s_week7_2024)
+```
+
+Week 8 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 8 Datasets
+## ===========================
+defensive_summary_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 8/Week 8 Defensive Summary 2024.csv")
+defensive_PassRush_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 8/Week 8 Pass Rush 2024 .csv")
+defensive_RushDefense_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 8/Week 8 Rush Defense 2024.csv")
+defensive_Coverage_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 8/Week 8 Coverage 2024 (FBS).csv")
+defensive_tackle_week8 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 8/Week 8 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week8), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week8), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week8), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week8), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week8), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week8)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week8 <- defensive_summary_week8 %>%
+    left_join(
+      defensive_PassRush_week8 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week8)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week8 <- defensive_summary_week8 %>%
+    left_join(
+      defensive_RushDefense_week8 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week8)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week8 <- defensive_summary_week8 %>%
+    left_join(
+      defensive_Coverage_week8 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week8)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week8 <- defensive_summary_week8 %>%
+    left_join(
+      defensive_tackle_week8 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week8 <- defensive_summary_week8 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week8 <- defensive_PassRush_week8 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week8 <- defensive_RushDefense_week8 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week8 <- defensive_Coverage_week8 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week8 <- defensive_tackle_week8 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week8 <- defensive_PassRush_week8 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week8 <- defensive_RushDefense_week8 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week8 <- defensive_Coverage_week8 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week8 <- defensive_tackle_week8 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week8 <- defensive_summary_week8 %>%
+  left_join(defensive_PassRush_week8, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week8, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week8, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week8, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week8 <- defensive_combined_week8 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 8 Defensive Line
+## ===========================
+dl_week8_2024 <- defensive_combined_week8 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week8_2024)
+colnames(dl_week8_2024)
+
+## ===========================
+## Week 8 Edge Defenders
+## ===========================
+de_week8_2024 <- defensive_combined_week8 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week8_2024)
+colnames(de_week8_2024)
+
+## ===========================
+## Week 8 Linebackers
+## ===========================
+lb_week8_2024 <- defensive_combined_week8 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week8_2024)
+colnames(lb_week8_2024)
+
+## ===========================
+## Week 8 Cornerbacks
+## ===========================
+cb_week8_2024 <- defensive_combined_week8 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week8_2024)
+colnames(cb_week8_2024)
+
+## ===========================
+## Week 8 Safeties
+## ===========================
+s_week8_2024 <- defensive_combined_week8 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week8_2024)
+colnames(s_week8_2024)
+```
+
+Week 9 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 9 Datasets
+## ===========================
+defensive_summary_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 9/Week 9 Defensive Summary 2024.csv")
+defensive_PassRush_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 9/Week 9 Pass Rush 2024 .csv")
+defensive_RushDefense_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 9/Week 9 Rush Defense 2024.csv")
+defensive_Coverage_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 9/Week 9 Coverage 2024 (FBS).csv")
+defensive_tackle_week9 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 9/Week 9 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week9), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week9), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week9), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week9), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week9), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week9)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week9 <- defensive_summary_week9 %>%
+    left_join(
+      defensive_PassRush_week9 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week9)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week9 <- defensive_summary_week9 %>%
+    left_join(
+      defensive_RushDefense_week9 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week9)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week9 <- defensive_summary_week9 %>%
+    left_join(
+      defensive_Coverage_week9 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week9)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week9 <- defensive_summary_week9 %>%
+    left_join(
+      defensive_tackle_week9 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week9 <- defensive_summary_week9 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week9 <- defensive_PassRush_week9 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week9 <- defensive_RushDefense_week9 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week9 <- defensive_Coverage_week9 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week9 <- defensive_tackle_week9 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week9 <- defensive_PassRush_week9 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week9 <- defensive_RushDefense_week9 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week9 <- defensive_Coverage_week9 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week9 <- defensive_tackle_week9 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week9 <- defensive_summary_week9 %>%
+  left_join(defensive_PassRush_week9, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week9, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week9, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week9, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week9 <- defensive_combined_week9 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 9 Defensive Line
+## ===========================
+dl_week9_2024 <- defensive_combined_week9 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week9_2024)
+colnames(dl_week9_2024)
+
+## ===========================
+## Week 9 Edge Defenders
+## ===========================
+de_week9_2024 <- defensive_combined_week9 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week9_2024)
+colnames(de_week9_2024)
+
+## ===========================
+## Week 9 Linebackers
+## ===========================
+lb_week9_2024 <- defensive_combined_week9 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week9_2024)
+colnames(lb_week9_2024)
+
+## ===========================
+## Week 9 Cornerbacks
+## ===========================
+cb_week9_2024 <- defensive_combined_week9 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week9_2024)
+colnames(cb_week9_2024)
+
+## ===========================
+## Week 9 Safeties
+## ===========================
+s_week9_2024 <- defensive_combined_week9 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week9_2024)
+colnames(s_week9_2024)
+```
+
+Week 10 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 10 Datasets
+## ===========================
+defensive_summary_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 10/Week 10 Defensive Summary 2024.csv")
+defensive_PassRush_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 10/Week 10 Pass Rush 2024 .csv")
+defensive_RushDefense_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 10/Week 10 Rush Defense 2024.csv")
+defensive_Coverage_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 10/Week 10 Coverage 2024 (FBS).csv")
+defensive_tackle_week10 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 10/Week 10 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week10), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week10), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week10), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week10), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week10), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week10)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week10 <- defensive_summary_week10 %>%
+    left_join(
+      defensive_PassRush_week10 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week10)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week10 <- defensive_summary_week10 %>%
+    left_join(
+      defensive_RushDefense_week10 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week10)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week10 <- defensive_summary_week10 %>%
+    left_join(
+      defensive_Coverage_week10 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week10)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week10 <- defensive_summary_week10 %>%
+    left_join(
+      defensive_tackle_week10 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week10 <- defensive_summary_week10 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week10 <- defensive_PassRush_week10 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week10 <- defensive_RushDefense_week10 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week10 <- defensive_Coverage_week10 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week10 <- defensive_tackle_week10 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week10 <- defensive_PassRush_week10 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week10 <- defensive_RushDefense_week10 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week10 <- defensive_Coverage_week10 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week10 <- defensive_tackle_week10 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week10 <- defensive_summary_week10 %>%
+  left_join(defensive_PassRush_week10, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week10, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week10, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week10, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week10 <- defensive_combined_week10 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 10 Defensive Line
+## ===========================
+dl_week10_2024 <- defensive_combined_week10 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week10_2024)
+colnames(dl_week10_2024)
+
+## ===========================
+## Week 10 Edge Defenders
+## ===========================
+de_week10_2024 <- defensive_combined_week10 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week10_2024)
+colnames(de_week10_2024)
+
+## ===========================
+## Week 10 Linebackers
+## ===========================
+lb_week10_2024 <- defensive_combined_week10 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week10_2024)
+colnames(lb_week10_2024)
+
+## ===========================
+## Week 10 Cornerbacks
+## ===========================
+cb_week10_2024 <- defensive_combined_week10 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week10_2024)
+colnames(cb_week10_2024)
+
+## ===========================
+## Week 10 Safeties
+## ===========================
+s_week10_2024 <- defensive_combined_week10 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week10_2024)
+colnames(s_week10_2024)
+```
+
+Week 11 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 11 Datasets
+## ===========================
+defensive_summary_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 11/Week 11 Defensive Summary 2024.csv")
+defensive_PassRush_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 11/Week 11 Pass Rush 2024 .csv")
+defensive_RushDefense_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 11/Week 11 Rush Defense 2024.csv")
+defensive_Coverage_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 11/Week 11 Coverage 2024 (FBS).csv")
+defensive_tackle_week11 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 11/Week 11 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week11), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week11), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week11), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week11), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week11), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week11)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week11 <- defensive_summary_week11 %>%
+    left_join(
+      defensive_PassRush_week11 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week11)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week11 <- defensive_summary_week11 %>%
+    left_join(
+      defensive_RushDefense_week11 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week11)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week11 <- defensive_summary_week11 %>%
+    left_join(
+      defensive_Coverage_week11 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week11)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week11 <- defensive_summary_week11 %>%
+    left_join(
+      defensive_tackle_week11 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week11 <- defensive_summary_week11 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week11 <- defensive_PassRush_week11 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week11 <- defensive_RushDefense_week11 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week11 <- defensive_Coverage_week11 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week11 <- defensive_tackle_week11 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week11 <- defensive_PassRush_week11 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week11 <- defensive_RushDefense_week11 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week11 <- defensive_Coverage_week11 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week11 <- defensive_tackle_week11 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week11 <- defensive_summary_week11 %>%
+  left_join(defensive_PassRush_week11, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week11, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week11, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week11, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week11 <- defensive_combined_week11 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 11 Defensive Line
+## ===========================
+dl_week11_2024 <- defensive_combined_week11 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week11_2024)
+colnames(dl_week11_2024)
+
+## ===========================
+## Week 11 Edge Defenders
+## ===========================
+de_week11_2024 <- defensive_combined_week11 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week11_2024)
+colnames(de_week11_2024)
+
+## ===========================
+## Week 11 Linebackers
+## ===========================
+lb_week11_2024 <- defensive_combined_week11 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week11_2024)
+colnames(lb_week11_2024)
+
+## ===========================
+## Week 11 Cornerbacks
+## ===========================
+cb_week11_2024 <- defensive_combined_week11 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week11_2024)
+colnames(cb_week11_2024)
+
+## ===========================
+## Week 11 Safeties
+## ===========================
+s_week11_2024 <- defensive_combined_week11 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week11_2024)
+colnames(s_week11_2024)
+```
+
+Week 12 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 12 Datasets
+## ===========================
+defensive_summary_week12 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 12/Week 12 Defensive Summary 2024.csv")
+defensive_PassRush_week12 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 12/Week 12 Pass Rush 2024 .csv")
+defensive_RushDefense_week12 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 12/Week 12 Rush Defense 2024.csv")
+defensive_Coverage_week12 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 12/Week 12 Coverage 2024 (FBS).csv")
+defensive_tackle_week12 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 12/Week 12 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week12), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week12), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week12), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week12), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week12), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week12)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week12 <- defensive_summary_week12 %>%
+    left_join(
+      defensive_PassRush_week12 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week12)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week12 <- defensive_summary_week12 %>%
+    left_join(
+      defensive_RushDefense_week12 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week12)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week12 <- defensive_summary_week12 %>%
+    left_join(
+      defensive_Coverage_week12 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week12)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week12 <- defensive_summary_week12 %>%
+    left_join(
+      defensive_tackle_week12 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week12 <- defensive_summary_week12 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week12 <- defensive_PassRush_week12 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week12 <- defensive_RushDefense_week12 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week12 <- defensive_Coverage_week12 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week12 <- defensive_tackle_week12 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week12 <- defensive_PassRush_week12 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week12 <- defensive_RushDefense_week12 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week12 <- defensive_Coverage_week12 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week12 <- defensive_tackle_week12 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week12 <- defensive_summary_week12 %>%
+  left_join(defensive_PassRush_week12, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week12, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week12, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week12, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week12 <- defensive_combined_week12 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 12 Defensive Line
+## ===========================
+dl_week12_2024 <- defensive_combined_week12 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week12_2024)
+colnames(dl_week12_2024)
+
+## ===========================
+## Week 12 Edge Defenders
+## ===========================
+de_week12_2024 <- defensive_combined_week12 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week12_2024)
+colnames(de_week12_2024)
+
+## ===========================
+## Week 12 Linebackers
+## ===========================
+lb_week12_2024 <- defensive_combined_week12 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week12_2024)
+colnames(lb_week12_2024)
+
+## ===========================
+## Week 12 Cornerbacks
+## ===========================
+cb_week12_2024 <- defensive_combined_week12 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week12_2024)
+colnames(cb_week12_2024)
+
+## ===========================
+## Week 12 Safeties
+## ===========================
+s_week12_2024 <- defensive_combined_week12 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week12_2024)
+colnames(s_week12_2024)
+```
+
+Week 13 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 13 Datasets
+## ===========================
+defensive_summary_week13 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 13/Week 13 Defensive Summary 2024.csv")
+defensive_PassRush_week13 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 13/Week 13 Pass Rush 2024.csv")
+defensive_RushDefense_week13 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 13/Week 13 Rush Defense 2024.csv")
+defensive_Coverage_week13 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 13/Week 13 Coverage 2024 (FBS).csv")
+defensive_tackle_week13 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 13/Week 13 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week13), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week13), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week13), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week13), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week13), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week13)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week13 <- defensive_summary_week13 %>%
+    left_join(
+      defensive_PassRush_week13 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week13)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week13 <- defensive_summary_week13 %>%
+    left_join(
+      defensive_RushDefense_week13 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week13)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week13 <- defensive_summary_week13 %>%
+    left_join(
+      defensive_Coverage_week13 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week13)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week13 <- defensive_summary_week13 %>%
+    left_join(
+      defensive_tackle_week13 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week13 <- defensive_summary_week13 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week13 <- defensive_PassRush_week13 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week13 <- defensive_RushDefense_week13 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week13 <- defensive_Coverage_week13 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week13 <- defensive_tackle_week13 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week13 <- defensive_PassRush_week13 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week13 <- defensive_RushDefense_week13 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week13 <- defensive_Coverage_week13 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week13 <- defensive_tackle_week13 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week13 <- defensive_summary_week13 %>%
+  left_join(defensive_PassRush_week13, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week13, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week13, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week13, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week13 <- defensive_combined_week13 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 13 Defensive Line
+## ===========================
+dl_week13_2024 <- defensive_combined_week13 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week13_2024)
+colnames(dl_week13_2024)
+
+## ===========================
+## Week 13 Edge Defenders
+## ===========================
+de_week13_2024 <- defensive_combined_week13 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week13_2024)
+colnames(de_week13_2024)
+
+## ===========================
+## Week 13 Linebackers
+## ===========================
+lb_week13_2024 <- defensive_combined_week13 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week13_2024)
+colnames(lb_week13_2024)
+
+## ===========================
+## Week 13 Cornerbacks
+## ===========================
+cb_week13_2024 <- defensive_combined_week13 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week13_2024)
+colnames(cb_week13_2024)
+
+## ===========================
+## Week 13 Safeties
+## ===========================
+s_week13_2024 <- defensive_combined_week13 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week13_2024)
+colnames(s_week13_2024)
+```
+
+Week 14 2024
+```{r}
+library(tidyverse)
+
+## ===========================
+## 📅 Upload Week 14 Datasets
+## ===========================
+defensive_summary_week14 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 13/Week 14 Defensive Summary 2024.csv")
+defensive_PassRush_week14 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 14/Week 14 Pass Rush 2024.csv")
+defensive_RushDefense_week14 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 14/Week 14 Rush Defense 2024.csv")
+defensive_Coverage_week14 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 14/Week 14 Coverage 2024 (FBS).csv")
+defensive_tackle_week14 <- read.csv("/Users/mohammadal-rousan/Desktop/SMU Football Data/Offense/2024/Test Model for Evals/Data/Defense/Week 14/Week 14 Tackling 2024.csv")
+
+## ===========================
+## Check for Conference column
+## ===========================
+cat("=== CHECKING FOR CONFERENCE ===\n")
+cat("Summary has Conference:", "Conference" %in% colnames(defensive_summary_week14), "\n")
+cat("PassRush has Conference:", "Conference" %in% colnames(defensive_PassRush_week14), "\n")
+cat("RushDefense has Conference:", "Conference" %in% colnames(defensive_RushDefense_week14), "\n")
+cat("Coverage has Conference:", "Conference" %in% colnames(defensive_Coverage_week14), "\n")
+cat("Tackle has Conference:", "Conference" %in% colnames(defensive_tackle_week14), "\n")
+
+## ===========================
+## Get Conference from wherever it exists
+## ===========================
+join_cols <- c("Name", "Season", "Team", "Position")
+
+# If summary doesn't have Conference, try to get it from PassRush
+if (!"Conference" %in% colnames(defensive_summary_week14)) {
+  cat("\nGetting Conference from PassRush...\n")
+  defensive_summary_week14 <- defensive_summary_week14 %>%
+    left_join(
+      defensive_PassRush_week14 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try RushDefense
+if (!"Conference" %in% colnames(defensive_summary_week14)) {
+  cat("Getting Conference from RushDefense...\n")
+  defensive_summary_week14 <- defensive_summary_week14 %>%
+    left_join(
+      defensive_RushDefense_week14 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Coverage
+if (!"Conference" %in% colnames(defensive_summary_week14)) {
+  cat("Getting Conference from Coverage...\n")
+  defensive_summary_week14 <- defensive_summary_week14 %>%
+    left_join(
+      defensive_Coverage_week14 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+# If still no Conference, try Tackle
+if (!"Conference" %in% colnames(defensive_summary_week14)) {
+  cat("Getting Conference from Tackle...\n")
+  defensive_summary_week14 <- defensive_summary_week14 %>%
+    left_join(
+      defensive_tackle_week14 %>% 
+        select(Name, Season, Team, Position, Conference),
+      by = c("Name", "Season", "Team", "Position")
+    )
+}
+
+## ===========================
+## Remove Duplicate Players
+## ===========================
+defensive_summary_week14 <- defensive_summary_week14 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_PassRush_week14 <- defensive_PassRush_week14 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_RushDefense_week14 <- defensive_RushDefense_week14 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_Coverage_week14 <- defensive_Coverage_week14 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+defensive_tackle_week14 <- defensive_tackle_week14 %>%
+  distinct(across(all_of(join_cols)), .keep_all = TRUE)
+
+## ===========================
+## Remove Duplicate Metadata (but KEEP Conference)
+## ===========================
+drop_cols <- c(
+  "Defensive.Snaps",
+  "Defensive.Grades",
+  "Run.Defense.Grade",
+  "Pass.Rush.Grade",
+  "Coverage.Grade"
+)
+
+defensive_PassRush_week14 <- defensive_PassRush_week14 %>%
+  select(-any_of(drop_cols))
+
+defensive_RushDefense_week14 <- defensive_RushDefense_week14 %>%
+  select(-any_of(drop_cols))
+
+defensive_Coverage_week14 <- defensive_Coverage_week14 %>%
+  select(-any_of(drop_cols))
+
+defensive_tackle_week14 <- defensive_tackle_week14 %>%
+  select(-any_of(drop_cols))
+
+## ===========================
+## Join Everything
+## ===========================
+defensive_combined_week14 <- defensive_summary_week14 %>%
+  left_join(defensive_PassRush_week14, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_RushDefense_week14, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_Coverage_week14, by = join_cols, relationship = "one-to-one") %>%
+  left_join(defensive_tackle_week14, by = join_cols, relationship = "one-to-one")
+
+## ===========================
+## Replace NaN with 0
+## ===========================
+defensive_combined_week14 <- defensive_combined_week14 %>%
+  mutate(across(where(is.numeric), ~ replace(.x, is.nan(.x), 0)))
+
+## ===========================
+## Conference Groups
+## ===========================
+p4_conference <- c("ACC", "Big 12", "Big Ten", "SEC", "Pac-12")
+g5_conference <- c("MAC", "AAC", "C-USA", "MWC", "Sun Belt", "IND (FBS)")
+
+## ===========================
+## Week 14 Defensive Line
+## ===========================
+dl_week14_2024 <- defensive_combined_week14 %>%
+  filter(
+    Position %in% c("DLT", "DRT", "NLT", "NRT", "NT", "LE", "RE", "DI"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(dl_week14_2024)
+colnames(dl_week14_2024)
+
+## ===========================
+## Week 14 Edge Defenders
+## ===========================
+de_week14_2024 <- defensive_combined_week14 %>%
+  filter(
+    Position %in% c("LEO", "REO", "LOLB", "ROLB", "ED"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(de_week14_2024)
+colnames(de_week14_2024)
+
+## ===========================
+## Week 14 Linebackers
+## ===========================
+lb_week14_2024 <- defensive_combined_week14 %>%
+  filter(
+    Position %in% c("RILB", "LLB", "LILB", "MLB", "LB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(lb_week14_2024)
+colnames(lb_week14_2024)
+
+## ===========================
+## Week 14 Cornerbacks
+## ===========================
+cb_week14_2024 <- defensive_combined_week14 %>%
+  filter(
+    Position %in% c("LCB", "RCB", "CB"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(cb_week14_2024)
+colnames(cb_week14_2024)
+
+## ===========================
+## Week 14 Safeties
+## ===========================
+s_week14_2024 <- defensive_combined_week14 %>%
+  filter(
+    Position %in% c("SS", "SSL", "SSR", "FS", "FSL", "FSR", "S"),
+    Defensive.Snaps >= 15,
+    Defensive.Snaps < 100
+  ) %>%
+  mutate(
+    Conference_Level = case_when(
+      Conference %in% p4_conference ~ "P4",
+      Conference %in% g5_conference ~ "G5",
+      TRUE ~ NA_character_
+    )
+  ) %>%
+  distinct(Name, Season, Team, Position, .keep_all = TRUE) %>%
+  mutate(across(where(is.numeric), ~ ifelse(is.nan(.x), NA, .x))) %>%
+  select(-matches("\\.x$"), -matches("\\.y$"), -matches("\\.x\\.x$"), -matches("\\.y\\.y$"))
+
+View(s_week14_2024)
+colnames(s_week14_2024)
+```
